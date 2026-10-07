@@ -5,6 +5,7 @@ import com.lylecommerce.order.domain.Order;
 import com.lylecommerce.order.domain.OrderItem;
 import com.lylecommerce.order.domain.OrderRepository;
 import com.lylecommerce.order.domain.OrderStatus;
+import com.lylecommerce.order.support.PostgresIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,11 +16,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(classes = OrderServiceApplication.class)
 @Transactional
-class JpaOrderRepositoryAdapterIntegrationTest {
+class JpaOrderRepositoryAdapterIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     private OrderRepository orderRepository;

@@ -9,6 +9,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.*;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.HttpClientErrorException;
+import com.lylecommerce.order.support.PostgresIntegrationTest;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -20,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
         classes = OrderServiceApplication.class,
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
 )
-class OrderControllerIntegrationTest {
+class OrderControllerIntegrationTest extends PostgresIntegrationTest {
 
     @LocalServerPort
     private int port;
