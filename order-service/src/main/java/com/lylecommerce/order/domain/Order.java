@@ -16,11 +16,13 @@ public class Order {
     private OrderStatus status;
     private Instant updatedAt;
 
-    public Order(
+    private Order(
             UUID id,
             UUID customerId,
             List<OrderItem> items,
-            Instant createdAt) {
+            OrderStatus status,
+            Instant createdAt,
+            Instant updatedAt) {
 
         this.id = Objects.requireNonNull(
                 id,
@@ -40,14 +42,22 @@ public class Order {
 
         this.items = List.copyOf(items);
 
+        this.status = Objects.requireNonNull(
+                status,
+                "Order status must not be null"
+        );
+
         this.createdAt = Objects.requireNonNull(
                 createdAt,
                 "Created time must not be null"
         );
 
-        this.status = OrderStatus.PENDING;
-        this.updatedAt = createdAt;
+        this.updatedAt = Objects.requireNonNull(
+                updatedAt,
+                "Updated time must not be null"
+        );
     }
+
 
     public static Order create(
             UUID customerId,
@@ -59,7 +69,27 @@ public class Order {
                 UUID.randomUUID(),
                 customerId,
                 items,
+                OrderStatus.PENDING,
+                now,
                 now
+        );
+    }
+
+    public static Order rehydrate(
+            UUID id,
+            UUID customerId,
+            List<OrderItem> items,
+            OrderStatus status,
+            Instant createdAt,
+            Instant updatedAt) {
+
+        return new Order(
+                id,
+                customerId,
+                items,
+                status,
+                createdAt,
+                updatedAt
         );
     }
 

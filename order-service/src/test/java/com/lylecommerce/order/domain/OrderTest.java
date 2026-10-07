@@ -143,11 +143,45 @@ class OrderTest {
                 new BigDecimal("79.99")
         );
 
-        return new Order(
+        return Order.create(
                 UUID.randomUUID(),
-                UUID.randomUUID(),
-                List.of(item),
-                Instant.now()
+                List.of(item)
         );
+    }
+
+    @Test
+    void shouldRehydrateExistingOrder() {
+        UUID orderId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+
+        Instant createdAt = Instant.parse(
+                "2026-10-06T18:00:00Z"
+        );
+
+        Instant updatedAt = Instant.parse(
+                "2026-10-06T18:05:00Z"
+        );
+
+        OrderItem item = new OrderItem(
+                UUID.randomUUID(),
+                "Mechanical Keyboard",
+                1,
+                new BigDecimal("79.99")
+        );
+
+        Order order = Order.rehydrate(
+                orderId,
+                customerId,
+                List.of(item),
+                OrderStatus.CONFIRMED,
+                createdAt,
+                updatedAt
+        );
+
+        assertEquals(orderId, order.getId());
+        assertEquals(customerId, order.getCustomerId());
+        assertEquals(OrderStatus.CONFIRMED, order.getStatus());
+        assertEquals(createdAt, order.getCreatedAt());
+        assertEquals(updatedAt, order.getUpdatedAt());
     }
 }
