@@ -3,6 +3,7 @@ package com.lylecommerce.order.application;
 import com.lylecommerce.order.domain.Order;
 import com.lylecommerce.order.domain.OrderRepository;
 import com.lylecommerce.order.domain.OrderStatus;
+import com.lylecommerce.order.infrastructure.messaging.OrderEventPublisher;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -18,6 +19,9 @@ class CreateOrderServiceTest {
     @Test
     void shouldCreateAndSaveOrder() {
 
+        OrderEventPublisher eventPublisher =
+                mock(OrderEventPublisher.class);
+
         OrderRepository repository =
                 mock(OrderRepository.class);
 
@@ -26,7 +30,10 @@ class CreateOrderServiceTest {
                         invocation.getArgument(0));
 
         CreateOrderService service =
-                new CreateOrderService(repository);
+                new CreateOrderService(
+                        repository,
+                        eventPublisher
+                );
 
         UUID customerId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
@@ -64,5 +71,7 @@ class CreateOrderServiceTest {
 
         verify(repository, times(1))
                 .save(any(Order.class));
+        verify(eventPublisher, times(1))
+                .publishOrderCreated(any(com.lylecommerce.order.infrastructure.messaging.OrderCreatedEvent.class));
     }
 }

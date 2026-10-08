@@ -3,8 +3,10 @@ package com.lylecommerce.order.support;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
 @Testcontainers
 public abstract class PostgresIntegrationTest {
@@ -16,8 +18,14 @@ public abstract class PostgresIntegrationTest {
                     .withUsername("order_user")
                     .withPassword("order_password");
 
+    @Container
+    static final KafkaContainer kafka =
+            new KafkaContainer(
+                    DockerImageName.parse("apache/kafka:4.1.0")
+            );
+
     @DynamicPropertySource
-    static void configurePostgres(
+    static void configureInfrastructure(
             DynamicPropertyRegistry registry) {
 
         registry.add(
@@ -33,6 +41,11 @@ public abstract class PostgresIntegrationTest {
         registry.add(
                 "spring.datasource.password",
                 postgres::getPassword
+        );
+
+        registry.add(
+                "spring.kafka.bootstrap-servers",
+                kafka::getBootstrapServers
         );
     }
 }
