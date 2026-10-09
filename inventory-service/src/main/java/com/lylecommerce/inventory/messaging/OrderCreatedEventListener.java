@@ -31,7 +31,10 @@ public class OrderCreatedEventListener {
     )
     public void handleOrderCreated(OrderCreatedEvent event) {
 
-        reserveInventoryService.reserve(event);
+        boolean newlyReserved = reserveInventoryService.reserve(event);
+        if (!newlyReserved) {
+            return;
+        }
 
         InventoryReservedEvent reservedEvent =
                 new InventoryReservedEvent(

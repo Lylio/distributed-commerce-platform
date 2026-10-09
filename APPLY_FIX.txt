@@ -1,0 +1,5 @@
+Run from ~/workspace:
+  unzip -o inventory-idempotency-fix.zip -d distributed-commerce-platform
+  cd distributed-commerce-platform
+  grep -n "boolean reserve" inventory-service/src/main/java/com/lylecommerce/inventory/application/ReserveInventoryService.java
+  mvn -pl inventory-service -am test
