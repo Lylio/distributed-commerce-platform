@@ -23,13 +23,19 @@ public class JpaOrderRepositoryAdapter
 
     @Override
     public Order save(Order order) {
-        OrderJpaEntity entity =
-                OrderPersistenceMapper.toJpaEntity(order);
+        OrderJpaEntity entity = repository.findById(order.getId())
+                .orElseGet(() -> OrderPersistenceMapper.toJpaEntity(order));
+        entity.updateStatus(order.getStatus(), order.getUpdatedAt());
 
         OrderJpaEntity savedEntity =
                 repository.save(entity);
 
         return OrderPersistenceMapper.toDomain(savedEntity);
+    }
+
+    @Override
+    public Optional<Order> findByIdForUpdate(UUID orderId) {
+        return repository.findByIdForUpdate(orderId).map(OrderPersistenceMapper::toDomain);
     }
 
     @Override

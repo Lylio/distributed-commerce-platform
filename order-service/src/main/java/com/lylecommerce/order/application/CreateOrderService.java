@@ -1,6 +1,7 @@
 package com.lylecommerce.order.application;
 
 import com.lylecommerce.order.domain.Order;
+import com.lylecommerce.order.domain.ProductRepository;
 import com.lylecommerce.order.domain.OrderItem;
 import com.lylecommerce.order.domain.OrderRepository;
 import com.lylecommerce.order.infrastructure.messaging.OrderCreatedEvent;
@@ -19,7 +20,9 @@ public class CreateOrderService {
     private final OrderRepository orderRepository;
     private final OrderEventPublisher orderEventPublisher;
 
-    public CreateOrderService(OrderRepository orderRepository, OrderEventPublisher orderEventPublisher) {
+    private final ProductRepository products;
+    public CreateOrderService(OrderRepository orderRepository, OrderEventPublisher orderEventPublisher, ProductRepository products) {
+        this.products = products;
         this.orderRepository = orderRepository;
         this.orderEventPublisher = orderEventPublisher;
     }
@@ -27,14 +30,19 @@ public class CreateOrderService {
     @Transactional
     public Order createOrder(CreateOrderCommand command) {
 
+        if (command.customerId() == null) throw new IllegalArgumentException("Customer ID is required");
+        if (command.items() == null || command.items().isEmpty() || command.items().size() > 100)
+            throw new IllegalArgumentException("Order must contain between 1 and 100 items");
         List<OrderItem> items = command.items()
                 .stream()
-                .map(item -> new OrderItem(
-                        item.productId(),
-                        item.productName(),
-                        item.quantity(),
-                        item.unitPrice()
-                ))
+                .map(item -> {
+                    if (item == null || item.productId() == null || item.quantity() < 1 || item.quantity() > 100)
+                        throw new IllegalArgumentException("Each product requires a quantity between 1 and 100");
+                    var product = products.findById(item.productId())
+                            .orElseThrow(() -> new IllegalArgumentException("Product is unavailable: " + item.productId()));
+                    // Legacy price/name fields are accepted for compatibility but never trusted.
+                    return new OrderItem(product.id(), product.name(), item.quantity(), product.unitPrice());
+                })
                 .toList();
 
         Order order = Order.create(

@@ -1,14 +1,19 @@
 spring:
+  jackson:
+    deserialization:
+      accept-float-as-int: false
   application:
     name: order-service
 
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
+      acks: all
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
     consumer:
       group-id: order-service
+      enable-auto-commit: false
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
@@ -18,9 +23,9 @@ spring:
         spring.json.use.type.headers: false
 
   datasource:
-    url: jdbc:postgresql://localhost:5433/orders
-    username: order_user
-    password: order_password
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/orders}
+    username: ${DB_USERNAME:order_user}
+    password: ${DB_PASSWORD:order_password}
     driver-class-name: org.postgresql.Driver
 
   jpa:

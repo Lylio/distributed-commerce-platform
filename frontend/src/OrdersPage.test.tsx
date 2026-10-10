@@ -1,0 +1,26 @@
+import { act, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { OrderInformation, OrderReceipt, OrdersPage } from './OrdersPage';
+import { api } from './api';
+import type { OrderDetail } from './types';
+vi.mock('./api', () => ({ api: { order: vi.fn(), orders: vi.fn() } }));
+const detail: OrderDetail = { order: { id: '00000000-0000-0000-0000-00000000000b', customerId: '11111111-1111-1111-1111-111111111111', status: 'CANCELLED', total: 79.99, createdAt: '2026-10-09T12:00:00Z', updatedAt: '2026-10-09T12:01:00Z', items: [{ productId: '22222222-2222-2222-2222-222222222222', productName: 'Mechanical Keyboard', quantity: 1, unitPrice: 79.99, total: 79.99 }] }, currency: 'GBP', paymentStatus: 'NOT_REQUESTED', cancellationReason: 'INSUFFICIENT_STOCK: 22222222-2222-2222-2222-222222222222', transitions: [{ status: 'PENDING', occurredAt: '2026-10-09T12:00:00Z' }, { status: 'CANCELLED', occurredAt: '2026-10-09T12:01:00Z' }] };
+beforeEach(() => vi.clearAllMocks());
+afterEach(() => vi.useRealTimers());
+it('shows inventory cancellation without inventing a payment', () => { render(<OrderInformation detail={detail}/>); expect(screen.getByText('Payment not requested')).toBeVisible(); expect(screen.getByText(/not enough stock/)).toBeVisible(); expect(screen.queryByText('Demo payment succeeded')).not.toBeInTheDocument(); });
+it('distinguishes failed simulated payment from inventory rejection', () => { render(<OrderInformation detail={{ ...detail, paymentStatus: 'FAILED', cancellationReason: 'PAYMENT_FAILED' }}/>); expect(screen.getByText('Demo payment failed')).toBeVisible(); expect(screen.getByText(/Stock release is processed separately/)).toBeVisible(); });
+it('displays an empty dashboard when the backend has no orders', async () => { vi.mocked(api.orders).mockResolvedValue([]); render(<OrdersPage products={[]} stock={[]} stockError=""/>); expect(await screen.findByRole('heading', { name: 'A clear desk. A fresh start.' })).toBeVisible(); });
+it('polls a persisted pending order until its actual terminal outcome', async () => {
+  vi.useFakeTimers();
+  const pending = { ...detail, order: { ...detail.order, status: 'PENDING' as const }, cancellationReason: null, transitions: detail.transitions.slice(0, 1) };
+  const confirmed = { ...pending, order: { ...pending.order, status: 'CONFIRMED' as const }, paymentStatus: 'SUCCEEDED' as const };
+  vi.mocked(api.order).mockResolvedValueOnce(pending).mockResolvedValue(confirmed);
+  render(<OrderReceipt id={detail.order.id}/>);
+  await act(async () => { await Promise.resolve(); });
+  expect(screen.getByRole('heading', { name: 'Order received.' })).toBeVisible();
+  await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+  expect(screen.getByRole('heading', { name: 'Good things are yours.' })).toBeVisible();
+  expect(screen.getByText('Demo payment succeeded')).toBeVisible();
+  await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+  expect(api.order).toHaveBeenCalledTimes(2);
+});

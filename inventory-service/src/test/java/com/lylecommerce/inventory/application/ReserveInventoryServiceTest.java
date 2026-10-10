@@ -1,6 +1,7 @@
 package com.lylecommerce.inventory.application;
 
 import com.lylecommerce.inventory.domain.InventoryItem;
+import com.lylecommerce.inventory.infrastructure.outbox.OutboxStore;
 import com.lylecommerce.inventory.domain.InventoryRepository;
 import com.lylecommerce.inventory.domain.InventoryReservationRepository;
 import com.lylecommerce.inventory.messaging.OrderCreatedEvent;
@@ -19,8 +20,9 @@ class ReserveInventoryServiceTest {
 
     private final InventoryRepository inventoryRepository = mock(InventoryRepository.class);
     private final InventoryReservationRepository reservationRepository = mock(InventoryReservationRepository.class);
+    private final OutboxStore outbox = mock(OutboxStore.class);
     private final ReserveInventoryService service =
-            new ReserveInventoryService(inventoryRepository, reservationRepository);
+            new ReserveInventoryService(inventoryRepository, reservationRepository, outbox);
 
     private final UUID orderId = UUID.randomUUID();
     private final UUID productId = UUID.randomUUID();
@@ -42,6 +44,8 @@ class ReserveInventoryServiceTest {
         assertEquals(8, stock.getAvailableQuantity());
         assertEquals(2, stock.getReservedQuantity());
         verify(inventoryRepository).save(stock);
+        verify(reservationRepository).recordItems(eq(orderId), anyList());
+        verify(outbox).append(any(), eq(orderId), eq("inventory-reserved"), any());
     }
 
     @Test
@@ -49,15 +53,27 @@ class ReserveInventoryServiceTest {
         when(reservationRepository.tryClaimOrder(orderId)).thenReturn(false);
 
         assertFalse(service.reserve(event()));
-        verifyNoInteractions(inventoryRepository);
+        verifyNoInteractions(inventoryRepository, outbox);
     }
 
     @Test
-    void missingProductFailsRatherThanReportingSuccess() {
+    void missingProductRecordsRejection() {
         when(reservationRepository.tryClaimOrder(orderId)).thenReturn(true);
         when(inventoryRepository.findByProductId(productId)).thenReturn(Optional.empty());
 
-        assertThrows(IllegalStateException.class, () -> service.reserve(event()));
+        assertTrue(service.reserve(event()));
+        verify(reservationRepository).markRejected(eq(orderId), startsWith("PRODUCT_NOT_FOUND"));
+        verify(outbox).append(any(), eq(orderId), eq("inventory-rejected"), any());
         verify(inventoryRepository, never()).save(any());
+    }
+    @Test
+    void insufficientStockRecordsRejectionWithoutMutation() {
+        var stock = new InventoryItem(productId, 1, 0);
+        when(reservationRepository.tryClaimOrder(orderId)).thenReturn(true);
+        when(inventoryRepository.findByProductId(productId)).thenReturn(Optional.of(stock));
+        assertTrue(service.reserve(event()));
+        assertEquals(1, stock.getAvailableQuantity());
+        verify(inventoryRepository, never()).save(any());
+        verify(reservationRepository).markRejected(eq(orderId), startsWith("INSUFFICIENT_STOCK"));
     }
 }

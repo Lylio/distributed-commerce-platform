@@ -1,6 +1,8 @@
 package com.lylecommerce.order.application;
 
 import com.lylecommerce.order.domain.Order;
+import com.lylecommerce.order.domain.Product;
+import com.lylecommerce.order.domain.ProductRepository;
 import com.lylecommerce.order.domain.OrderRepository;
 import com.lylecommerce.order.domain.OrderStatus;
 import com.lylecommerce.order.infrastructure.messaging.OrderEventPublisher;
@@ -29,14 +31,17 @@ class CreateOrderServiceTest {
                 .thenAnswer(invocation ->
                         invocation.getArgument(0));
 
+        ProductRepository products = mock(ProductRepository.class);
         CreateOrderService service =
                 new CreateOrderService(
                         repository,
-                        eventPublisher
+                        eventPublisher, products
                 );
 
         UUID customerId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
+        when(products.findById(productId)).thenReturn(java.util.Optional.of(new Product(productId,
+                "Mechanical Keyboard", "Fixture", "Workspace", "Description", List.of(), "keyboard", "sage", new BigDecimal("79.99"), "GBP")));
 
         CreateOrderCommand command =
                 new CreateOrderCommand(

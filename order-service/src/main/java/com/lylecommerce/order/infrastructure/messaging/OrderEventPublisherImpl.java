@@ -1,28 +1,11 @@
 package com.lylecommerce.order.infrastructure.messaging;
-
-import org.springframework.kafka.core.KafkaTemplate;
+import com.lylecommerce.order.infrastructure.outbox.OutboxStore;
 import org.springframework.stereotype.Component;
-
 @Component
 public class OrderEventPublisherImpl implements OrderEventPublisher {
-
-    private static final String ORDER_CREATED_TOPIC = "order-created";
-
-    private final KafkaTemplate<String, Object> kafkaTemplate;
-
-    public OrderEventPublisherImpl(
-            KafkaTemplate<String, Object> kafkaTemplate) {
-
-        this.kafkaTemplate = kafkaTemplate;
-    }
-
-    @Override
+    private final OutboxStore outbox;
+    public OrderEventPublisherImpl(OutboxStore outbox) { this.outbox = outbox; }
     public void publishOrderCreated(OrderCreatedEvent event) {
-
-        kafkaTemplate.send(
-                ORDER_CREATED_TOPIC,
-                event.orderId().toString(),
-                event
-        ).join();
+        outbox.append(event.eventId(), event.orderId(), "order-created", event);
     }
 }

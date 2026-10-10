@@ -32,6 +32,8 @@ public class OrderController {
     public OrderResponse createOrder(
             @RequestBody CreateOrderRequest request) {
 
+        if (request.items() == null || request.items().stream().anyMatch(java.util.Objects::isNull))
+            throw new IllegalArgumentException("Order items are required");
         List<CreateOrderCommand.Item> items =
                 request.items()
                         .stream()

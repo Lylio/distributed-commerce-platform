@@ -58,6 +58,11 @@ public class OrderJpaEntity {
         item.setOrder(this);
     }
 
+    public void updateStatus(OrderStatus status, Instant updatedAt) {
+        this.status = status;
+        this.updatedAt = updatedAt;
+    }
+
     public UUID getId() {
         return id;
     }
