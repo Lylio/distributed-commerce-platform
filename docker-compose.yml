@@ -92,6 +92,9 @@ services:
       dockerfile: order-service/Dockerfile
     restart: unless-stopped
     environment:
+      MONITORING_ORDER_URL: http://order-service:8081
+      MONITORING_INVENTORY_URL: http://inventory-service:8082
+      MONITORING_PAYMENT_URL: http://payment-service:8083
       DB_URL: jdbc:postgresql://order-db:5432/orders
       DB_USERNAME: order_user
       DB_PASSWORD: order_password

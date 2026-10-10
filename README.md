@@ -185,3 +185,90 @@ Flyway migrations are additive. Existing pre-outbox rows are not automatically r
 | Inventory | `GET /inventory` | Current available/reserved quantities by product |
 
 Bad checkout requests return HTTP 400 with a Problem Detail. Unknown catalogue products are rejected before order creation; inventory shortages after submission still use Kafka business rejection. Order history is recorded in the owning PostgreSQL database by an additive Flyway migration/trigger. Legacy orders begin with their known current state; intermediate transitions that never committed are not fabricated. Prices are snapshotted on creation, so existing orders retain their original totals after catalogue edits.
+
+## Live System Monitor
+
+Start the complete application with `docker compose up --build -d`, then open
+[System Monitor](http://localhost:5173/#/monitor) from the storefront navigation.
+Keep it open in one tab and place an order in another. The architecture diagram
+highlights genuine publication and committed processing; click a service to filter
+activity, or click an observation to inspect its recorded path. The collection,
+checkout, receipts and order dashboard continue to work as before.
+
+Select or paste a complete order ID to load its retained journey. Filter by event
+type or service, and use **View order** to open the existing receipt. Each row shows
+event time, observation sequence, source/destination, stage and order ID. The live
+stream reconnects automatically; historical rows are labelled **History**, and
+replayed observations are deduplicated. The initial snapshot contains 500 recent
+observations; selecting an order requests up to 5,000 retained observations.
+
+The stages intentionally distinguish different evidence:
+
+- **Outbox inserted**: a committed business transaction recorded a message.
+- **Published · broker acknowledged**: the existing outbox relay recorded a Kafka acknowledgement.
+- **Published · observed in Kafka**: the independent `system-monitor-v1` consumer observed a broker record, including topic, partition and offset. This does not establish business consumer acknowledgement.
+- **Processing outcome committed**: a service's persisted outcome establishes processing. Order state transitions are labelled separately.
+- **Stock release committed**: Inventory Service's committed `released_at` record establishes completed compensation. `InventoryReleased` is a state observation, not an invented Kafka message.
+
+Health checks use each service's Actuator health endpoint and a Kafka broker metadata
+request over Docker networking. Checks run every ten seconds with bounded timeouts;
+checks older than thirty seconds become **unknown** in the browser. Connection status
+is independent of service health.
+
+To demonstrate deterministic failed payment and compensation:
+
+```sh
+DEMO_PAYMENT_FORCE_FAILURE=true docker compose up -d --no-deps payment-service
+```
+
+Place a new order for an in-stock product. Trace `PaymentResultEvent` with `FAILED`,
+`OrderCancelled`, the actual `OrderCancelledEvent` publication, and finally
+`InventoryReleased`. Cancellation alone does not establish restored inventory.
+Restore normal simulation with:
+
+```sh
+DEMO_PAYMENT_FORCE_FAILURE=false docker compose up -d --no-deps payment-service
+```
+
+Monitoring stores only identifiers, event/stage/status metadata and timestamps in
+the existing Order Service database. It retains approximately 20,000 observations
+for up to seven days, without modifying business records or volumes. Monitoring
+writes and consumers are independent of business transactions and groups.
+
+Browser-facing APIs (proxied through the existing Nginx frontend):
+
+- `GET /api/monitoring/events?orderId=...&type=...&service=...&limit=500`: bounded retained history (maximum limit 5,000).
+- `GET /api/monitoring/stream`: SSE snapshot, live observations and health, with `Last-Event-ID` replay.
+- `GET /api/monitoring/health`: latest real checks.
+
+Each backend also exposes `GET /internal/monitoring/evidence`, a sanitized read-only
+view of committed outbox and lifecycle evidence. It is used internally and is not
+proxied by the storefront. No customer, item, credential or payment details are
+copied into telemetry.
+
+Additional verification commands:
+
+```sh
+mvn -B -ntp clean verify
+npm --prefix frontend test
+npm --prefix frontend run build
+python3 scripts/test-monitoring.py
+COMMERCE_BASE_URL=http://127.0.0.1:5173 npm --prefix frontend run test:e2e
+```
+
+The existing successful-checkout browser test expects `PAYMENT_SIMULATION_OUTCOME=SUCCEEDED`
+and `DEMO_PAYMENT_FORCE_FAILURE=false`. It chooses a currently stocked product, so
+repeated verification does not require resetting seeded stock. Configure that
+simulation temporarily with `PAYMENT_SIMULATION_OUTCOME=SUCCEEDED DEMO_PAYMENT_FORCE_FAILURE=false docker compose up -d --no-deps payment-service`,
+then restore `PAYMENT_SIMULATION_OUTCOME=AUTO DEMO_PAYMENT_FORCE_FAILURE=false docker compose up -d --no-deps payment-service`.
+
+For the separate browser compensation test, enable forced failure, then run:
+
+```sh
+MONITOR_FORCE_FAILURE=true COMMERCE_BASE_URL=http://127.0.0.1:5173 npm --prefix frontend run test:e2e -- --grep 'forced payment failure'
+```
+
+The deployed monitoring smoke test expects normal `AUTO` simulation so it can
+observe both outcomes. With forced failure enabled, run it with `--force-failure`.
+See [MONITORING-DASHBOARD-RESULTS.md](MONITORING-DASHBOARD-RESULTS.md) for architecture,
+executed verification and limitations.

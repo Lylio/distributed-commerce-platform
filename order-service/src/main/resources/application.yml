@@ -41,3 +41,8 @@ management:
     web:
       exposure:
         include: health,info
+
+monitoring:
+  order-url: ${MONITORING_ORDER_URL:http://localhost:8081}
+  inventory-url: ${MONITORING_INVENTORY_URL:http://localhost:8082}
+  payment-url: ${MONITORING_PAYMENT_URL:http://localhost:8083}
