@@ -1,5 +1,8 @@
 # Distributed Commerce Platform
 
+## Description
+Distributed Commerce Platform is a development storefront backed by separate Order, Inventory, and Payment services. A shopper browses catalogue and live stock, persists a bag, checks out, then polls the order receipt; Kafka choreography reserves stock, simulates payment, and confirms or cancels the order, with compensation on payment failure. The graph includes the major dashboard and monitoring capabilities. Unsampled service internals are represented only where the README documents their behavior; edges reflect shown calls or documented HTTP/event flows.
+
 Java 21, Spring Boot 4.1.1, PostgreSQL 17, Kafka, and a React + TypeScript + Vite frontend. Three services own separate databases and communicate through Kafka choreography. Payment is a simulator; this is a development backend, not a production store.
 
 | Service | HTTP port | PostgreSQL host port | Responsibility |
@@ -7,6 +10,9 @@ Java 21, Spring Boot 4.1.1, PostgreSQL 17, Kafka, and a React + TypeScript + Vit
 | Order | 8081 | 5433 | Create/retrieve orders, coordinate lifecycle |
 | Inventory | 8082 | 5434 | Reserve/reject stock and compensate payment failures |
 | Payment | 8083 | 5435 | Persist deterministic simulated payment decisions |
+
+<img width="5560" height="8593" alt="diagram" src="https://github.com/user-attachments/assets/d36e4d82-f66b-4d1b-b56d-18d20f955118" />
+
 
 `integration-tests` is a verification-only Maven module. It starts three independent Spring contexts with three PostgreSQL containers and a Kafka container. It does not add a deployed service or runtime dependency between services.
 
